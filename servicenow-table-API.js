@@ -4,8 +4,7 @@ module.exports = function(RED) {
 
     function ServiceNowNode(n) {
         RED.nodes.createNode(this,n);
-        var request = require("request");
-        var querystring = require("querystring");
+        var axios = require("axios");
         var node = this;
         this.instance= n.instance;
         this.client_id= n.client_id;
@@ -16,35 +15,30 @@ module.exports = function(RED) {
             // Normalize instance URL - remove trailing slash
             var instanceUrl = node.instance.replace(/\/$/, '');
 
-            var tokenOptions = {
-                url: instanceUrl + '/oauth_token.do',
-                method: 'POST',
+            // Prepare OAuth token request data
+            var tokenData = new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: node.client_id,
+                client_secret: node.client_secret,
+                scope: node.scope
+            }).toString();
+
+            axios.post(instanceUrl + '/oauth_token.do', tokenData, {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: querystring.stringify({
-                    grant_type: 'client_credentials',
-                    client_id: node.client_id,
-                    client_secret: node.client_secret,
-                    scope: node.scope
-                })
-            };
-
-            request(tokenOptions, function(err, res, body) {
-                if (err) {
-                    return callback(err);
                 }
-
-                if (res.statusCode === 200) {
-                    try {
-                        var tokenData = typeof body === 'string' ? JSON.parse(body) : body;
-                        callback(null, tokenData.access_token);
-                    } catch (parseError) {
-                        callback(parseError);
-                    }
+            })
+            .then(function(response) {
+                callback(null, response.data.access_token);
+            })
+            .catch(function(error) {
+                var errorMsg = 'OAuth token request failed';
+                if (error.response) {
+                    errorMsg += ' with status ' + error.response.status + ': ' + JSON.stringify(error.response.data);
                 } else {
-                    callback(new Error('OAuth token request failed with status ' + res.statusCode + ': ' + JSON.stringify(body)));
+                    errorMsg += ': ' + error.message;
                 }
+                callback(new Error(errorMsg));
             });
         };
 
@@ -58,20 +52,51 @@ module.exports = function(RED) {
                 var instanceUrl = node.instance.replace(/\/$/, '');
 
                 // Convert baseUrl + uri to single url if using baseUrl
+                var url;
                 if (options.baseUrl && options.uri) {
-                    options.url = instanceUrl + '/' + options.uri.replace(/^\//, '');
-                    delete options.baseUrl;
-                    delete options.uri;
-                } else if (!options.url && options.uri) {
-                    options.url = instanceUrl + '/' + options.uri.replace(/^\//, '');
-                    delete options.uri;
+                    url = instanceUrl + '/' + options.uri.replace(/^\//, '');
+                } else if (options.url) {
+                    url = options.url;
+                } else if (options.uri) {
+                    url = instanceUrl + '/' + options.uri.replace(/^\//, '');
                 }
 
-                // Add Bearer token to the original request options
-                options.headers = options.headers || {};
-                options.headers['Authorization'] = 'Bearer ' + accessToken;
+                // Prepare axios config
+                var axiosConfig = {
+                    method: options.method || 'GET',
+                    url: url,
+                    headers: options.headers || {},
+                    data: options.body
+                };
 
-                request(options, callback);
+                // Add Bearer token
+                axiosConfig.headers['Authorization'] = 'Bearer ' + accessToken;
+
+                // Make the request
+                axios(axiosConfig)
+                .then(function(response) {
+                    // Adapt axios response to match request library format for compatibility
+                    var adaptedResponse = {
+                        statusCode: response.status,
+                        headers: response.headers,
+                        body: response.data
+                    };
+                    callback(null, adaptedResponse, response.data);
+                })
+                .catch(function(error) {
+                    if (error.response) {
+                        // Server responded with error status
+                        var adaptedResponse = {
+                            statusCode: error.response.status,
+                            headers: error.response.headers,
+                            body: error.response.data
+                        };
+                        callback(null, adaptedResponse, error.response.data);
+                    } else {
+                        // Network error or other issue
+                        callback(error);
+                    }
+                });
             });
         };
     }
