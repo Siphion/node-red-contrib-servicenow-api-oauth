@@ -1,0 +1,22 @@
+# Claude Code files
+.claude/
+CLAUDE.md
+
+# Git files
+.git/
+.gitignore
+
+# Development files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules (will be installed by users)
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
