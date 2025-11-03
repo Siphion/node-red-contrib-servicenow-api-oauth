@@ -282,3 +282,222 @@
 </script>
 
 
+<!-- ****************************** Get Attachment Metadata Node ****************************** -->
+
+<script type="text/javascript">
+  RED.nodes.registerType('get attachment metadata', {
+    category: 'Service Now Attachment API',
+    color: '#8fc1ba',
+    defaults: {
+      name: {
+        value: ""
+      },
+      server: {
+        value: "",
+        type: "servicenow-config"
+      }
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "nodered-contrib-servicenow-icon.png",
+    label: function() {
+      return this.name || "get attachment metadata";
+    }
+  });
+</script>
+  <script type="text/x-red" data-template-name="get attachment metadata">
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-server"><i class="icon-db"></i> Server</label>
+    <input type="text" id="node-input-server" placeholder="server">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="get attachment metadata">
+  <p>Retrieves metadata for a ServiceNow attachment.</p>
+  <h3>Inputs</h3>
+  <dl class="message-properties">
+    <dt>sys_id <span class="property-type">string</span></dt>
+    <dd>The sys_id of the attachment (required)</dd>
+  </dl>
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd>Attachment metadata including: sys_id, file_name, size_bytes, content_type, table_name, table_sys_id, download_link</dd>
+  </dl>
+</script>
+
+
+<!-- ****************************** Delete Attachment Node ****************************** -->
+
+<script type="text/javascript">
+  RED.nodes.registerType('delete attachment', {
+    category: 'Service Now Attachment API',
+    color: '#8fc1ba',
+    defaults: {
+      name: {
+        value: ""
+      },
+      server: {
+        value: "",
+        type: "servicenow-config"
+      }
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "nodered-contrib-servicenow-icon.png",
+    label: function() {
+      return this.name || "delete attachment";
+    }
+  });
+</script>
+  <script type="text/x-red" data-template-name="delete attachment">
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-server"><i class="icon-db"></i> Server</label>
+    <input type="text" id="node-input-server" placeholder="server">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="delete attachment">
+  <p>Deletes a ServiceNow attachment.</p>
+  <h3>Inputs</h3>
+  <dl class="message-properties">
+    <dt>sys_id <span class="property-type">string</span></dt>
+    <dd>The sys_id of the attachment to delete (required)</dd>
+  </dl>
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd>Empty object on successful deletion</dd>
+    <dt>statusCode <span class="property-type">number</span></dt>
+    <dd>204 on success</dd>
+  </dl>
+</script>
+
+
+<!-- ****************************** Upload Attachment Node ****************************** -->
+
+<script type="text/javascript">
+  RED.nodes.registerType('upload attachment', {
+    category: 'Service Now Attachment API',
+    color: '#8fc1ba',
+    defaults: {
+      name: {
+        value: ""
+      },
+      server: {
+        value: "",
+        type: "servicenow-config"
+      }
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "nodered-contrib-servicenow-icon.png",
+    label: function() {
+      return this.name || "upload attachment";
+    }
+  });
+</script>
+  <script type="text/x-red" data-template-name="upload attachment">
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-server"><i class="icon-db"></i> Server</label>
+    <input type="text" id="node-input-server" placeholder="server">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="upload attachment">
+  <p>Uploads a file as an attachment to a ServiceNow record.</p>
+  <h3>Inputs</h3>
+  <dl class="message-properties">
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>Table name (e.g., "incident", "problem") (required)</dd>
+    <dt>sys_id <span class="property-type">string</span></dt>
+    <dd>The sys_id of the record to attach the file to (required)</dd>
+    <dt>filename <span class="property-type">string</span></dt>
+    <dd>Name of the file (required)</dd>
+    <dt>payload <span class="property-type">Buffer</span></dt>
+    <dd>File content as Buffer (required)</dd>
+    <dt class="optional">contentType <span class="property-type">string</span></dt>
+    <dd>MIME type (optional, default: "application/octet-stream")</dd>
+  </dl>
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">object</span></dt>
+    <dd>Attachment metadata of the uploaded file</dd>
+  </dl>
+  <h3>Example</h3>
+  <pre>
+msg.topic = "incident";
+msg.sys_id = "abc123...";
+msg.filename = "screenshot.jpg";
+msg.payload = Buffer.from(...);
+msg.contentType = "image/jpeg";</pre>
+</script>
+
+
+<!-- ****************************** Download Attachment Node ****************************** -->
+
+<script type="text/javascript">
+  RED.nodes.registerType('download attachment', {
+    category: 'Service Now Attachment API',
+    color: '#8fc1ba',
+    defaults: {
+      name: {
+        value: ""
+      },
+      server: {
+        value: "",
+        type: "servicenow-config"
+      }
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "nodered-contrib-servicenow-icon.png",
+    label: function() {
+      return this.name || "download attachment";
+    }
+  });
+</script>
+  <script type="text/x-red" data-template-name="download attachment">
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-server"><i class="icon-db"></i> Server</label>
+    <input type="text" id="node-input-server" placeholder="server">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="download attachment">
+  <p>Downloads a file from ServiceNow attachments.</p>
+  <h3>Inputs</h3>
+  <dl class="message-properties">
+    <dt>sys_id <span class="property-type">string</span></dt>
+    <dd>The sys_id of the attachment to download (required)</dd>
+  </dl>
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">Buffer</span></dt>
+    <dd>File content as Buffer</dd>
+    <dt>filename <span class="property-type">string</span></dt>
+    <dd>Original filename from ServiceNow</dd>
+    <dt>contentType <span class="property-type">string</span></dt>
+    <dd>MIME type of the file</dd>
+  </dl>
+  <h3>Details</h3>
+  <p>This node first retrieves the attachment metadata (filename, content type), then downloads the file binary content.</p>
+</script>
+
+

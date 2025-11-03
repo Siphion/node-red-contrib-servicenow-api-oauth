@@ -69,6 +69,11 @@ module.exports = function(RED) {
                     data: options.body
                 };
 
+                // Support for binary responses (e.g., file downloads)
+                if (options.responseType) {
+                    axiosConfig.responseType = options.responseType;
+                }
+
                 // Add Bearer token
                 axiosConfig.headers['Authorization'] = 'Bearer ' + accessToken;
 
@@ -685,11 +690,302 @@ module.exports = function(RED) {
     
     }
 
+// Node Get Attachment Metadata
+
+    function GetAttachmentMetadata(config) {
+        RED.nodes.createNode(this, config);
+        var node = this;
+        var server = RED.nodes.getNode(config.server);
+
+        this.prepareRequest = function(attachmentSysId, callback) {
+            var options = {
+                baseUrl: server.instance,
+                uri: 'api/now/attachment/' + attachmentSysId,
+                body: null,
+                method: 'GET',
+                json: true,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+            server.doRequest(options, callback);
+        };
+
+        this.on('input', function(msg) {
+            var attachmentSysId = msg.sys_id || msg.topic;
+
+            if (!attachmentSysId) {
+                node.status({
+                    fill: "red",
+                    shape: "dot",
+                    text: "Invalid message: sys_id required"
+                });
+                return;
+            }
+
+            var callback = function(err, res, body) {
+                if (res.statusCode === 200) {
+                    node.status({});
+                    msg.payload = res.body.result;
+                    node.send(msg);
+                } else {
+                    node.status({
+                        fill: "red",
+                        shape: "dot",
+                        text: "Request failed"
+                    });
+                    node.error("Error getting attachment metadata: " + attachmentSysId + " (" + res.statusCode + "): " + JSON.stringify(err) + " " + JSON.stringify(body));
+                }
+            };
+
+            node.status({
+                fill: "blue",
+                shape: "dot",
+                text: "Requesting..."
+            });
+            this.prepareRequest(attachmentSysId, callback);
+        });
+    }
+
+// Node Delete Attachment
+
+    function DeleteAttachment(config) {
+        RED.nodes.createNode(this, config);
+        var node = this;
+        var server = RED.nodes.getNode(config.server);
+
+        this.prepareRequest = function(attachmentSysId, callback) {
+            var options = {
+                baseUrl: server.instance,
+                uri: 'api/now/attachment/' + attachmentSysId,
+                body: null,
+                method: 'DELETE',
+                json: true,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+            server.doRequest(options, callback);
+        };
+
+        this.on('input', function(msg) {
+            var attachmentSysId = msg.sys_id || msg.topic;
+
+            if (!attachmentSysId) {
+                node.status({
+                    fill: "red",
+                    shape: "dot",
+                    text: "Invalid message: sys_id required"
+                });
+                return;
+            }
+
+            var callback = function(err, res, body) {
+                if (res.statusCode === 204) {
+                    node.status({});
+                    msg.payload = {};
+                    msg.statusCode = 204;
+                    node.send(msg);
+                } else {
+                    node.status({
+                        fill: "red",
+                        shape: "dot",
+                        text: "Request failed"
+                    });
+                    node.error("Error deleting attachment: " + attachmentSysId + " (" + res.statusCode + "): " + JSON.stringify(err) + " " + JSON.stringify(body));
+                }
+            };
+
+            node.status({
+                fill: "blue",
+                shape: "dot",
+                text: "Deleting..."
+            });
+            this.prepareRequest(attachmentSysId, callback);
+        });
+    }
+
+// Node Upload Attachment
+
+    function UploadAttachment(config) {
+        RED.nodes.createNode(this, config);
+        var node = this;
+        var server = RED.nodes.getNode(config.server);
+
+        this.prepareRequest = function(tableName, recordSysId, filename, fileBuffer, contentType, callback) {
+            var instanceUrl = server.instance.replace(/\/$/, '');
+            var url = instanceUrl + '/api/now/attachment/file' +
+                      '?table_name=' + encodeURIComponent(tableName) +
+                      '&table_sys_id=' + encodeURIComponent(recordSysId) +
+                      '&file_name=' + encodeURIComponent(filename);
+
+            var options = {
+                url: url,
+                body: fileBuffer,
+                method: 'POST',
+                json: false,
+                headers: {
+                    'Content-Type': contentType || 'application/octet-stream',
+                    'Accept': 'application/json'
+                }
+            };
+            server.doRequest(options, callback);
+        };
+
+        this.on('input', function(msg) {
+            var tableName = msg.topic;
+            var recordSysId = msg.sys_id;
+            var filename = msg.filename;
+            var fileBuffer = msg.payload;
+            var contentType = msg.contentType;
+
+            if (!tableName || !recordSysId || !filename || !fileBuffer) {
+                node.status({
+                    fill: "red",
+                    shape: "dot",
+                    text: "Invalid message: topic, sys_id, filename, payload required"
+                });
+                return;
+            }
+
+            if (!Buffer.isBuffer(fileBuffer)) {
+                node.status({
+                    fill: "red",
+                    shape: "dot",
+                    text: "Invalid payload: must be Buffer"
+                });
+                return;
+            }
+
+            var callback = function(err, res, body) {
+                if (res.statusCode === 201) {
+                    node.status({});
+                    try {
+                        var result = typeof body === 'string' ? JSON.parse(body) : body;
+                        msg.payload = result.result || result;
+                        node.send(msg);
+                    } catch (parseError) {
+                        node.status({
+                            fill: "red",
+                            shape: "dot",
+                            text: "Parse error"
+                        });
+                        node.error("Error parsing response: " + parseError);
+                    }
+                } else {
+                    node.status({
+                        fill: "red",
+                        shape: "dot",
+                        text: "Upload failed"
+                    });
+                    node.error("Error uploading attachment (" + res.statusCode + "): " + JSON.stringify(err) + " " + JSON.stringify(body));
+                }
+            };
+
+            node.status({
+                fill: "blue",
+                shape: "dot",
+                text: "Uploading..."
+            });
+            this.prepareRequest(tableName, recordSysId, filename, fileBuffer, contentType, callback);
+        });
+    }
+
+// Node Download Attachment
+
+    function DownloadAttachment(config) {
+        RED.nodes.createNode(this, config);
+        var node = this;
+        var server = RED.nodes.getNode(config.server);
+
+        this.on('input', function(msg) {
+            var attachmentSysId = msg.sys_id || msg.topic;
+
+            if (!attachmentSysId) {
+                node.status({
+                    fill: "red",
+                    shape: "dot",
+                    text: "Invalid message: sys_id required"
+                });
+                return;
+            }
+
+            node.status({
+                fill: "blue",
+                shape: "dot",
+                text: "Getting metadata..."
+            });
+
+            // Step 1: Get metadata
+            var metadataOptions = {
+                baseUrl: server.instance,
+                uri: 'api/now/attachment/' + attachmentSysId,
+                method: 'GET',
+                json: true,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            server.doRequest(metadataOptions, function(err, metaRes, metaBody) {
+                if (metaRes.statusCode !== 200) {
+                    node.status({
+                        fill: "red",
+                        shape: "dot",
+                        text: "Metadata request failed"
+                    });
+                    node.error("Error getting attachment metadata: " + attachmentSysId + " (" + metaRes.statusCode + ")");
+                    return;
+                }
+
+                var metadata = metaRes.body.result;
+                msg.filename = metadata.file_name;
+                msg.contentType = metadata.content_type;
+
+                node.status({
+                    fill: "blue",
+                    shape: "dot",
+                    text: "Downloading file..."
+                });
+
+                // Step 2: Download file
+                var downloadOptions = {
+                    baseUrl: server.instance,
+                    uri: 'api/now/attachment/' + attachmentSysId + '/file',
+                    method: 'GET',
+                    responseType: 'arraybuffer',
+                    headers: {
+                        'Accept': '*/*'
+                    }
+                };
+
+                server.doRequest(downloadOptions, function(err, fileRes, fileBody) {
+                    if (fileRes.statusCode === 200) {
+                        node.status({});
+                        msg.payload = Buffer.from(fileRes.body);
+                        node.send(msg);
+                    } else {
+                        node.status({
+                            fill: "red",
+                            shape: "dot",
+                            text: "Download failed"
+                        });
+                        node.error("Error downloading attachment: " + attachmentSysId + " (" + fileRes.statusCode + ")");
+                    }
+                });
+            });
+        });
+    }
+
     RED.nodes.registerType("patch record",PatchRecord);
     RED.nodes.registerType("modify record",ModifyRecord);
     RED.nodes.registerType("delete record",DeleteRecord);
     RED.nodes.registerType("create record",CreateRecord);
     RED.nodes.registerType("retrieve records",RetrieveRecords);
     RED.nodes.registerType("retrieve record",RetrieveRecord);
+    RED.nodes.registerType("get attachment metadata",GetAttachmentMetadata);
+    RED.nodes.registerType("delete attachment",DeleteAttachment);
+    RED.nodes.registerType("upload attachment",UploadAttachment);
+    RED.nodes.registerType("download attachment",DownloadAttachment);
     RED.nodes.registerType("servicenow-config",ServiceNowNode);
 }

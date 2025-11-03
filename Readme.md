@@ -1,4 +1,4 @@
-node-red-contrib-servicenow-oauth-table-api
+node-red-contrib-servicenow-api-oauth
 ========================
 
 A [Node-RED](https://www.nodered.org/) node collection to interact with ServiceNow Table API using OAuth 2.0 authentication. [Table API doc](https://developer.servicenow.com/dev.do#!/reference/api/quebec/rest/c_TableAPI).
@@ -11,30 +11,39 @@ Install
 1. Open your Node-RED editor
 2. Click on the menu (top right) → Manage palette
 3. Go to the "Install" tab
-4. Search for `node-red-contrib-servicenow-oauth-table-api`
+4. Search for `node-red-contrib-servicenow-api-oauth`
 5. Click "Install"
 
 ### Option 2: Using npm
 
 Run command on Node-RED installation directory:
 
-	npm install node-red-contrib-servicenow-oauth-table-api
+	npm install node-red-contrib-servicenow-api-oauth
 
 or run command for global installation:
 
-	npm install -g node-red-contrib-servicenow-oauth-table-api
+	npm install -g node-red-contrib-servicenow-api-oauth
 
 After installation, restart Node-RED to load the new nodes.
 
 Nodes
 -----
 
-* Retrieve Records: Retrieves multiple records for the specified table (GET)
-* Retrieve Record: Retrieves the record identified by the specified sys_id from the specified table (GET)
-* Modify Record: Updates the specified record with the request body. (PUT)
-* Update Record: Updates the specified record with the name-value pairs included in the request body (PATCH)
-* Create Record: Inserts one record in the specified table. Multiple record insertion is not supported by this method (POST)
-* Delete Record: Deletes the specified record from the specified table. (DELETE)
+### Table API Nodes
+
+* **Retrieve Records**: Retrieves multiple records for the specified table (GET)
+* **Retrieve Record**: Retrieves the record identified by the specified sys_id from the specified table (GET)
+* **Modify Record**: Updates the specified record with the request body (PUT)
+* **Update Record**: Updates the specified record with the name-value pairs included in the request body (PATCH)
+* **Create Record**: Inserts one record in the specified table (POST)
+* **Delete Record**: Deletes the specified record from the specified table (DELETE)
+
+### Attachment API Nodes
+
+* **Upload Attachment**: Uploads a file as an attachment to a ServiceNow record
+* **Download Attachment**: Downloads a file from ServiceNow attachments
+* **Get Attachment Metadata**: Retrieves metadata for a ServiceNow attachment
+* **Delete Attachment**: Deletes a ServiceNow attachment
 
 Config Nodes
 -----
@@ -100,6 +109,113 @@ grant_type=client_credentials
 ```
 GET https://yourinstance.service-now.com/api/now/table/incident
 Authorization: Bearer ACCESS_TOKEN
+```
+
+Attachment API
+--------------
+
+The package includes nodes for managing file attachments in ServiceNow records.
+
+### Upload Attachment
+
+Uploads a file to a ServiceNow record.
+
+**Input Message:**
+```javascript
+msg.topic = "incident";           // Table name (required)
+msg.sys_id = "abc123...";         // Record sys_id (required)
+msg.filename = "screenshot.jpg";  // File name (required)
+msg.payload = Buffer.from(...);   // File content as Buffer (required)
+msg.contentType = "image/jpeg";   // MIME type (optional, default: application/octet-stream)
+```
+
+**Output:**
+```javascript
+msg.payload = {
+  sys_id: "...",              // Attachment sys_id
+  file_name: "...",
+  size_bytes: "...",
+  content_type: "...",
+  download_link: "...",
+  table_name: "incident",
+  table_sys_id: "abc123..."
+}
+```
+
+### Download Attachment
+
+Downloads a file from ServiceNow. Automatically retrieves metadata (filename, content-type) before downloading.
+
+**Input Message:**
+```javascript
+msg.sys_id = "attachment_sys_id";  // Attachment sys_id (required)
+```
+
+**Output:**
+```javascript
+msg.payload = Buffer;              // File content as Buffer
+msg.filename = "screenshot.jpg";   // Original filename
+msg.contentType = "image/jpeg";    // MIME type
+```
+
+### Get Attachment Metadata
+
+Retrieves metadata for an attachment without downloading the file.
+
+**Input Message:**
+```javascript
+msg.sys_id = "attachment_sys_id";  // Attachment sys_id (required)
+```
+
+**Output:**
+```javascript
+msg.payload = {
+  sys_id: "...",
+  file_name: "...",
+  size_bytes: "...",
+  content_type: "...",
+  download_link: "...",
+  table_name: "...",
+  table_sys_id: "...",
+  sys_created_on: "...",
+  compressed: "true/false"
+}
+```
+
+### Delete Attachment
+
+Deletes an attachment from ServiceNow.
+
+**Input Message:**
+```javascript
+msg.sys_id = "attachment_sys_id";  // Attachment sys_id (required)
+```
+
+**Output:**
+```javascript
+msg.payload = {};                  // Empty object
+msg.statusCode = 204;              // Success indicator
+```
+
+### Example Flow: Upload and Download
+
+```javascript
+// Upload example
+const fs = require('fs');
+msg.topic = "incident";
+msg.sys_id = "incident_sys_id_here";
+msg.filename = "report.pdf";
+msg.payload = fs.readFileSync('/path/to/report.pdf');
+msg.contentType = "application/pdf";
+return msg;
+
+// Download example (use attachment sys_id from upload response)
+msg.sys_id = "attachment_sys_id_from_upload";
+return msg;
+
+// Save downloaded file
+const fs = require('fs');
+fs.writeFileSync('/path/to/downloaded_' + msg.filename, msg.payload);
 ```
 
 Message parameters
